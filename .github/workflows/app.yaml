@@ -1,1 +1,51 @@
-this is a development env
+name: Deploy Flask and MySQL to ECR
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_REGION: us-east-1
+
+      - name: Set Environment Variables
+        run: echo "ECR_REPOSITORY=webapp_ecr" >> $GITHUB_ENV
+
+      - name: Build and Push MySQL Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:mysqlv1.0 -f Dockerfile_mysql .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:mysqlv1.0
+
+      - name: Build and Push Flask App Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:appv1.0 -f Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:appv1.0
+
+      - name: Test Flask App Locally
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker network create app-network
+          docker run -d --name mysql-db --network app-network -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=employees $ECR_REGISTRY/$ECR_REPOSITORY:mysqlv1.0
+          sleep 15
+          docker run -d -p 8080:8080 --name flask-app --network app-network -e DBHOST=mysql-db -e DBUSER=root -e DBPWD=password -e DATABASE=employees -e DBPORT=3306 $ECR_REGISTRY/$ECR_REPOSITORY:appv1.0
+          sleep 10
+          curl -vvv http://localhost:8080 || (echo "Flask App failed to start!" && exit 1)
+          docker stop flask-app mysql-db && docker rm flask-app mysql-db
+          docker network rm app-network
