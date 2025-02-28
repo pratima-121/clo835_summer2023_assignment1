@@ -1,6 +1,6 @@
 name: Deploy Flask and MySQL to ECR
 
-#update0202
+#update2025
 
 on:
   push:
