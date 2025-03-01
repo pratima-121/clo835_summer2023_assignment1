@@ -1,6 +1,6 @@
 name: Deploy Flask and MySQL to ECR
 
-#update11:33
+# update11:33
 
 on:
   push:
@@ -23,30 +23,30 @@ jobs:
           AWS_REGION: us-east-1
 
       - name: Set Environment Variables
-        run: echo "ECR_REPOSITORY=webapp_ecr" >> $GITHUB_ENV
+        run: echo "ECR_REPOSITORY=clo835_app" >> $GITHUB_ENV  # 🔹 Changed repository name
 
       - name: Build and Push MySQL Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:mysqlv1.0 -f Dockerfile_mysql .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:mysqlv1.0
+          docker build -t $ECR_REGISTRY/clo835_app:mysqlv1.0 -f Dockerfile_mysql .  # 🔹 Fixed repository name
+          docker push $ECR_REGISTRY/clo835_app:mysqlv1.0  # 🔹 Fixed repository name
 
       - name: Build and Push Flask App Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:appv1.0 -f Dockerfile .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:appv1.0
+          docker build -t $ECR_REGISTRY/clo835_app:appv1.0 -f Dockerfile .  # 🔹 Fixed repository name
+          docker push $ECR_REGISTRY/clo835_app:appv1.0  # 🔹 Fixed repository name
 
       - name: Test Flask App Locally
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker network create app-network
-          docker run -d --name mysql-db --network app-network -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=employees $ECR_REGISTRY/$ECR_REPOSITORY:mysqlv1.0
+          docker run -d --name mysql-db --network app-network -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=employees $ECR_REGISTRY/clo835_app:mysqlv1.0  # 🔹 Fixed repository name
           sleep 15
-          docker run -d -p 8080:8080 --name flask-app --network app-network -e DBHOST=mysql-db -e DBUSER=root -e DBPWD=password -e DATABASE=employees -e DBPORT=3306 $ECR_REGISTRY/$ECR_REPOSITORY:appv1.0
+          docker run -d -p 8080:8080 --name flask-app --network app-network -e DBHOST=mysql-db -e DBUSER=root -e DBPWD=password -e DATABASE=employees -e DBPORT=3306 $ECR_REGISTRY/clo835_app:appv1.0  # 🔹 Fixed repository name
           sleep 10
           curl -vvv http://localhost:8080 || (echo "Flask App failed to start!" && exit 1)
           docker stop flask-app mysql-db && docker rm flask-app mysql-db
